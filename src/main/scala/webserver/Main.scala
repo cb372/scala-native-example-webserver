@@ -1,5 +1,6 @@
 package webserver
 
+import webserver.UvUtil._
 import webserver.uv.TcpHandle
 
 import scala.scalanative.native._
@@ -43,15 +44,6 @@ object Main extends App {
 
     bailOnError(uv.run(loop, DefaultRunMode))
     println("Started event loop")
-  }
-
-  private def bailOnError(f: => CInt): Unit = {
-    val result = f
-    if (result != 0) {
-      val errorName = uv.getErrorName(result)
-      println(s"Failed: ${fromCString(errorName)}")
-      System.exit(1)
-    }
   }
 
 }
