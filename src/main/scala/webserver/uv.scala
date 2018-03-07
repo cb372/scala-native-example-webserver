@@ -49,6 +49,9 @@ object uv {
   @name("uv_accept")
   def accept(handle: Ptr[TcpHandle], clientHandle: Ptr[TcpHandle]): CInt = extern
 
+  @name("uv_read_start")
+  def readStart(clientHandle: Ptr[TcpHandle], allocateBuffer: CFunctionPtr3[Ptr[TcpHandle], CSize, Ptr[Buffer], Unit], onRead: CFunctionPtr3[Ptr[TcpHandle], CSSize, Ptr[Buffer], Unit]): CInt = extern
+
   @name("uv_close")
   def close(clientHandle: Ptr[TcpHandle], callback: CFunctionPtr1[Ptr[TcpHandle], Unit]): CInt = extern
 
