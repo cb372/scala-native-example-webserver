@@ -28,6 +28,21 @@ object uv {
     CFunctionPtr3[Ptr[Byte], CSSize, Ptr[Unit], Unit]       // uv_read_cb read_cb; (Ptr[Byte] is actually Ptr[TcpHandle])
   ]
 
+  type Write = CStruct12[
+    Ptr[Unit],                                              // void* data;
+    CInt,                                                   // uv_req_type type;
+    CArray[Ptr[Unit], Nat._6],                              // void* reserved[6];
+    CFunctionPtr2[Ptr[Byte], CInt, Unit],                   // uv_write_cb cb; (Ptr[Byte] is actually Ptr[Write])
+    Ptr[TcpHandle],                                         // uv_stream_t* send_handle;
+    Ptr[TcpHandle],                                         // uv_stream_t* handle;
+    CArray[Ptr[Unit], Nat._2],                              // void* queue[2];
+    UInt,                                                   // unsigned int write_index;
+    Ptr[Buffer],                                            // uv_buf_t* bufs;
+    UInt,                                                   // unsigned int nbufs;
+    CInt,                                                   // int error;
+    CArray[Buffer, Nat._4]                                  // uv_buf_t bufsml[4];
+  ]
+
   @name("uv_ip4_addr")
   def ipv4Addr(ip: CString, port: CInt, addr: Ptr[sockaddr_in]): CInt = extern
 
@@ -51,6 +66,9 @@ object uv {
 
   @name("uv_read_start")
   def readStart(clientHandle: Ptr[TcpHandle], allocateBuffer: CFunctionPtr3[Ptr[TcpHandle], CSize, Ptr[Buffer], Unit], onRead: CFunctionPtr3[Ptr[TcpHandle], CSSize, Ptr[Buffer], Unit]): CInt = extern
+
+  @name("uv_write")
+  def write(req: Ptr[Write], clientHandle: Ptr[TcpHandle], buffers: Ptr[Buffer], numberOfBuffers: UInt, onWritten: CFunctionPtr2[Ptr[Write], CInt, Unit]): CInt = extern
 
   @name("uv_close")
   def close(clientHandle: Ptr[TcpHandle], callback: CFunctionPtr1[Ptr[TcpHandle], Unit]): CInt = extern

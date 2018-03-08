@@ -1,9 +1,9 @@
 package webserver
 
-import java.nio.charset.Charset
+import java.nio.charset.{Charset, StandardCharsets}
 
 import webserver.UvUtil._
-import webserver.uv.{Buffer, Loop, TcpHandle}
+import webserver.uv.{Buffer, Loop, TcpHandle, Write}
 
 import scala.scalanative.native._
 
@@ -29,7 +29,7 @@ object Server {
 
   private def _onClose(clientHandle: Ptr[TcpHandle]): Unit = {
     println("Freed client handle")
-    stdlib.free(clientHandle.cast[Ptr[Byte]])
+    //stdlib.free(clientHandle.cast[Ptr[Byte]])
   }
 
   private def _allocateRequestBuffer(clientHandle: Ptr[TcpHandle], suggestedSize: CSize, buffer: Ptr[Buffer]): Unit = {
@@ -42,17 +42,17 @@ object Server {
     bytesRead match {
       case UV_EOF =>
         println("Read the entire request")
-        stdlib.free(!(buffer._1))
+        //stdlib.free(!(buffer._1))
       case n if n < 0 =>
         println(s"Error reading request: ${uv.getErrorName(n.toInt)}")
         uv.close(clientHandle, CFunctionPtr.fromFunction1(_onClose))
-        stdlib.free(!(buffer._1))
+        //stdlib.free(!(buffer._1))
       case n =>
         println(s"Read $n bytes of the request")
         val request: String = readRequestAsString(bytesRead, buffer)
         println(request)
 
-        stdlib.free(!(buffer._1))
+        //stdlib.free(!(buffer._1))
 
         parseAndRespond(clientHandle, request)
     }
@@ -72,7 +72,40 @@ object Server {
 
   private def parseAndRespond(clientHandle: Ptr[TcpHandle], rawRequest: String): Unit = {
     println("TODO parse request")
-    // TODO parse request, write response, close request and clean up resources
+    // TODO parse request
+
+    val buffer = stdlib.malloc(sizeof[uv.Buffer]).cast[Ptr[Buffer]]
+    val text =
+      s"""HTTP/1.1 200 OK\r
+         |Connection: close\r
+         |Content-Type: text/html\r
+         |Content-Length: 36\r
+         |\r
+         |<html>
+         |<body>
+         |Hello
+         |</body>
+         |</html>""".stripMargin
+    val bytes = text.getBytes(StandardCharsets.UTF_8)
+    val string = stdlib.malloc(bytes.length + 1)
+
+    var c = 0
+    while (c < bytes.length) {
+      string(c) = bytes(c)
+      c += 1
+    }
+
+    !buffer._1 = string
+    !buffer._2 = bytes.length + 1
+
+    val req = stdlib.malloc(sizeof[uv.Write]).cast[Ptr[Write]]
+
+    bailOnError(uv.write(req, clientHandle, buffer, 1.toUInt, onWritten))
+  }
+
+  private def _onWritten(write: Ptr[Write], status: CInt): Unit = {
+    println(s"Write succeeded: ${status >= 0}")
+    // TODO clean up a bunch of stuff
   }
 
   val onTcpConnection: CFunctionPtr2[Ptr[TcpHandle], CInt, Unit] = CFunctionPtr.fromFunction2(_onTcpConnection)
@@ -80,5 +113,6 @@ object Server {
   private val onClose = CFunctionPtr.fromFunction1(_onClose)
   private val allocateRequestBuffer = CFunctionPtr.fromFunction3(_allocateRequestBuffer)
   private val onRead = CFunctionPtr.fromFunction3(_onRead)
+  private val onWritten = CFunctionPtr.fromFunction2(_onWritten)
 
 }
