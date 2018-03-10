@@ -14,7 +14,7 @@ object Server {
 
   def _onTcpConnection(tcpHandle: Ptr[TcpHandle], status: CInt): Unit = {
     println("Got a connection!")
-    val loop: Ptr[Loop] = (!(tcpHandle._2)).cast[Ptr[Loop]]
+    val loop: Ptr[Loop] = (!tcpHandle._2).cast[Ptr[Loop]]
 
     println("Allocating a client handle for the request")
     val clientTcpHandle = stdlib.malloc(sizeof[TcpHandle]).cast[Ptr[TcpHandle]]
@@ -111,7 +111,7 @@ object Server {
              |  </ul>
              |</body>
              |</html>
-           """.stripMargin
+             |""".stripMargin
 
         s"""HTTP/1.1 200 OK\r
            |Connection: close\r
@@ -120,18 +120,20 @@ object Server {
            |\r
            |$entity""".stripMargin
 
-      case Left(invalidRequest) =>
+      case Left(_) =>
         ErrorResponse
     }
 
-    val byteArray = responseText.getBytes(StandardCharsets.UTF_8)
+    writeResponse(clientHandle, responseText.getBytes(StandardCharsets.UTF_8))
+  }
 
-    println(s"Allocating a buffer for the response (${byteArray.length} bytes)")
-    val responseBuffer = stdlib.malloc(byteArray.length)
+  private def writeResponse(clientHandle: Ptr[TcpHandle], responseBytes: Array[Byte]): Unit = {
+    println(s"Allocating a buffer for the response (${responseBytes.length} bytes)")
+    val responseBuffer = stdlib.malloc(responseBytes.length)
 
     var c = 0
-    while (c < byteArray.length) {
-      responseBuffer(c) = byteArray(c)
+    while (c < responseBytes.length) {
+      responseBuffer(c) = responseBytes(c)
       c += 1
     }
 
@@ -139,7 +141,7 @@ object Server {
     val buffer = stdlib.malloc(sizeof[Buffer]).cast[Ptr[Buffer]]
 
     !buffer._1 = responseBuffer
-    !buffer._2 = byteArray.length
+    !buffer._2 = responseBytes.length
 
     println("Allocating a Write for the response")
     val req = stdlib.malloc(sizeof[Write]).cast[Ptr[Write]]
