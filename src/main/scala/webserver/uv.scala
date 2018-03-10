@@ -17,7 +17,7 @@ object uv {
 
   type _100 = Digit[_1, Digit[_0, _0]]
   type TcpHandle = CStruct12[
-    Ptr[Unit],                                              // void* data;
+    Ptr[Byte],                                              // void* data;
     Ptr[Loop],                                              // uv_loop_t* loop;
     CInt,                                                   // uv_handle_type type;
     CFunctionPtr1[Ptr[Byte], Unit],                         // uv_close_cb close_cb; (Ptr[Byte] is actually Ptr[TcpHandle] but we can't have recursive types)
@@ -32,7 +32,7 @@ object uv {
   ]
 
   type Write = CStruct12[
-    Ptr[Unit],                                              // void* data;
+    Ptr[Byte],                                              // void* data;
     CInt,                                                   // uv_req_type type;
     CArray[Ptr[Unit], _6],                                  // void* reserved[6];
     CFunctionPtr2[Ptr[Byte], CInt, Unit],                   // uv_write_cb cb; (Ptr[Byte] is actually Ptr[Write])

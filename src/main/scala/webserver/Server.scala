@@ -13,8 +13,10 @@ object Server {
   private val UV_EOF: CSSize = -4095
 
   def _onTcpConnection(tcpHandle: Ptr[TcpHandle], status: CInt): Unit = {
-    println("got a connection!")
+    println("Got a connection!")
     val loop: Ptr[Loop] = (!(tcpHandle._2)).cast[Ptr[Loop]]
+
+    println("Allocating a client handle for the request")
     val clientTcpHandle = stdlib.malloc(sizeof[TcpHandle]).cast[Ptr[TcpHandle]]
 
     println("Initialising client handle")
@@ -28,12 +30,12 @@ object Server {
   }
 
   private def _onClose(clientHandle: Ptr[TcpHandle]): Unit = {
-    println("Freed client handle")
-    //stdlib.free(clientHandle.cast[Ptr[Byte]])
+    println("Freeing the client handle for the request")
+    stdlib.free(clientHandle.cast[Ptr[Byte]])
   }
 
   private def _allocateRequestBuffer(clientHandle: Ptr[TcpHandle], suggestedSize: CSize, buffer: Ptr[Buffer]): Unit = {
-    println(s"Allocating request buffer of size $suggestedSize")
+    println(s"Allocating request read buffer of size $suggestedSize")
     !buffer._1 = stdlib.malloc(suggestedSize)
     !buffer._2 = suggestedSize
   }
@@ -41,20 +43,30 @@ object Server {
   private def _onRead(clientHandle: Ptr[TcpHandle], bytesRead: CSSize, buffer: Ptr[Buffer]): Unit = {
     bytesRead match {
       case UV_EOF =>
-        println("Read the entire request")
-        //stdlib.free(!(buffer._1))
+        println("Finished reading the request")
+
+        println(s"Freeing request read buffer of size ${!buffer._2}")
+        stdlib.free(!buffer._1)
       case n if n < 0 =>
         println(s"Error reading request: ${uv.getErrorName(n.toInt)}")
-        uv.close(clientHandle, CFunctionPtr.fromFunction1(_onClose))
-        //stdlib.free(!(buffer._1))
+        uv.close(clientHandle, onClose)
+
+        println(s"Freeing request read buffer of size ${!buffer._2}")
+        stdlib.free(!buffer._1)
       case n =>
         println(s"Read $n bytes of the request")
-        val request: String = readRequestAsString(bytesRead, buffer)
-        println(request)
 
-        //stdlib.free(!(buffer._1))
+        val requestAsString: String = readRequestAsString(n, buffer)
 
-        parseAndRespond(clientHandle, request)
+        println(s"Freeing request read buffer of size ${!buffer._2}")
+        stdlib.free(!buffer._1)
+
+        /*
+        The onRead callback can be called multiple times for a single request,
+        but for simplicity we assume the request is < 64k and is thus read in a single chunk.
+        As soon as we read the first chunk, we parse it as an HTTP request and write the response.
+         */
+        parseAndRespond(clientHandle, requestAsString)
     }
   }
 
@@ -74,12 +86,13 @@ object Server {
     println("TODO parse request")
     // TODO parse request
 
+    println("Allocating a wrapper for the response buffer")
     val buffer = stdlib.malloc(sizeof[uv.Buffer]).cast[Ptr[Buffer]]
     val text =
       s"""HTTP/1.1 200 OK\r
          |Connection: close\r
          |Content-Type: text/html\r
-         |Content-Length: 36\r
+         |Content-Length: 35\r
          |\r
          |<html>
          |<body>
@@ -87,7 +100,9 @@ object Server {
          |</body>
          |</html>""".stripMargin
     val bytes = text.getBytes(StandardCharsets.UTF_8)
-    val string = stdlib.malloc(bytes.length + 1)
+
+    println(s"Allocating a buffer for the response (${bytes.length} bytes)")
+    val string = stdlib.malloc(bytes.length)
 
     var c = 0
     while (c < bytes.length) {
@@ -96,16 +111,32 @@ object Server {
     }
 
     !buffer._1 = string
-    !buffer._2 = bytes.length + 1
+    !buffer._2 = bytes.length
 
+    println("Allocating a Write for the response")
     val req = stdlib.malloc(sizeof[uv.Write]).cast[Ptr[Write]]
+
+    !req._1 = buffer.cast[Ptr[Byte]]
 
     bailOnError(uv.write(req, clientHandle, buffer, 1.toUInt, onWritten))
   }
 
   private def _onWritten(write: Ptr[Write], status: CInt): Unit = {
     println(s"Write succeeded: ${status >= 0}")
-    // TODO clean up a bunch of stuff
+
+    val buffer = (!write._1).cast[Ptr[Buffer]]
+
+    println(s"Freeing the response buffer (${(!buffer._2).cast[CSize]} bytes)")
+    stdlib.free(!buffer._1)
+
+    println("Freeing the wrapper for the response buffer")
+    stdlib.free(buffer.cast[Ptr[Byte]])
+
+    val clientHandle = (!write._6).cast[Ptr[TcpHandle]]
+    uv.close(clientHandle, onClose)
+
+    println("Freeing the Write for the response")
+    stdlib.free(write.cast[Ptr[Byte]])
   }
 
   val onTcpConnection: CFunctionPtr2[Ptr[TcpHandle], CInt, Unit] = CFunctionPtr.fromFunction2(_onTcpConnection)
