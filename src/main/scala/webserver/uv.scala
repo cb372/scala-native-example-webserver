@@ -1,6 +1,7 @@
 package webserver
 
 import scala.scalanative.native._
+import scala.scalanative.native.Nat._
 import scala.scalanative.posix.netinet.in.sockaddr_in
 
 @link("uv")
@@ -14,33 +15,35 @@ object uv {
     CSize    // size_t len;
   ]
 
-  type TcpHandle = CStruct11[
+  type _100 = Digit[_1, Digit[_0, _0]]
+  type TcpHandle = CStruct12[
     Ptr[Unit],                                              // void* data;
     Ptr[Loop],                                              // uv_loop_t* loop;
     CInt,                                                   // uv_handle_type type;
     CFunctionPtr1[Ptr[Byte], Unit],                         // uv_close_cb close_cb; (Ptr[Byte] is actually Ptr[TcpHandle] but we can't have recursive types)
-    CArray[Ptr[Unit], Nat._2],                              // void* handle_queue[2];
-    CArray[Ptr[Unit], Nat._4],                              // union { int fd; void* reserved[4]; } u;
+    CArray[Ptr[Unit], _2],                                  // void* handle_queue[2];
+    CArray[Ptr[Unit], _4],                                  // union { int fd; void* reserved[4]; } u;
     Ptr[Byte],                                              // uv_handle_t* next_closing; (Ptr[Byte] is actually Ptr[TcpHandle])
     UInt,                                                   // unsigned int flags;
     CSize,                                                  // size_t write_queue_size;
     CFunctionPtr3[Ptr[Byte], CSize, Ptr[Unit], Unit],       // uv_alloc_cb alloc_cb; (Ptr[Byte] is actually Ptr[TcpHandle])
-    CFunctionPtr3[Ptr[Byte], CSSize, Ptr[Unit], Unit]       // uv_read_cb read_cb; (Ptr[Byte] is actually Ptr[TcpHandle])
+    CFunctionPtr3[Ptr[Byte], CSSize, Ptr[Unit], Unit],      // uv_read_cb read_cb; (Ptr[Byte] is actually Ptr[TcpHandle])
+    CArray[Byte, _100]                                      // add enough padding to cover a bunch of private fields
   ]
 
   type Write = CStruct12[
     Ptr[Unit],                                              // void* data;
     CInt,                                                   // uv_req_type type;
-    CArray[Ptr[Unit], Nat._6],                              // void* reserved[6];
+    CArray[Ptr[Unit], _6],                                  // void* reserved[6];
     CFunctionPtr2[Ptr[Byte], CInt, Unit],                   // uv_write_cb cb; (Ptr[Byte] is actually Ptr[Write])
     Ptr[TcpHandle],                                         // uv_stream_t* send_handle;
     Ptr[TcpHandle],                                         // uv_stream_t* handle;
-    CArray[Ptr[Unit], Nat._2],                              // void* queue[2];
+    CArray[Ptr[Unit], _2],                                  // void* queue[2];
     UInt,                                                   // unsigned int write_index;
     Ptr[Buffer],                                            // uv_buf_t* bufs;
     UInt,                                                   // unsigned int nbufs;
     CInt,                                                   // int error;
-    CArray[Buffer, Nat._4]                                  // uv_buf_t bufsml[4];
+    CArray[Buffer, _4]                                      // uv_buf_t bufsml[4];
   ]
 
   @name("uv_ip4_addr")
