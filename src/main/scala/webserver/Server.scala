@@ -82,40 +82,69 @@ object Server {
     new String(bytes, Charset.defaultCharset())
   }
 
+  private val ErrorResponse =
+    s"""HTTP/1.1 422 Bad Request\r
+       |Connection: close\r
+       |Content-Type: text/plain; charset=utf8\r
+       |Content-Length: 35\r
+       |\r
+       |What on earth did you just send me?!""".stripMargin
+
   private def parseAndRespond(clientHandle: Ptr[TcpHandle], rawRequest: String): Unit = {
-    println("TODO parse request")
-    // TODO parse request
+    val responseText = Http.parseRequest(rawRequest) match {
+      case Right(parsedRequest) =>
+        val entity =
+          s"""<!DOCTYPE html>
+             |<html>
+             |<body>
+             |  <h2>Thanks for your request!</h2>
+             |  <p>Here's what you sent me.</p>
+             |  <ul>
+             |    <li>Method = ${parsedRequest.startLine.httpMethod}</li>
+             |    <li>Target = ${parsedRequest.startLine.requestTarget}</li>
+             |    <li>HTTP version = ${parsedRequest.startLine.httpVersion}</li>
+             |    <li>Headers:
+             |      <ul>
+             |        ${parsedRequest.headers.map(h => s"<li>${h.key}: ${h.value}</li>").mkString}
+             |      </ul>
+             |    </li>
+             |  </ul>
+             |</body>
+             |</html>
+           """.stripMargin
 
-    println("Allocating a wrapper for the response buffer")
-    val buffer = stdlib.malloc(sizeof[uv.Buffer]).cast[Ptr[Buffer]]
-    val text =
-      s"""HTTP/1.1 200 OK\r
-         |Connection: close\r
-         |Content-Type: text/html\r
-         |Content-Length: 35\r
-         |\r
-         |<html>
-         |<body>
-         |Hello
-         |</body>
-         |</html>""".stripMargin
-    val bytes = text.getBytes(StandardCharsets.UTF_8)
+        s"""HTTP/1.1 200 OK\r
+           |Connection: close\r
+           |Content-Type: text/html; charset=utf8\r
+           |Content-Length: ${entity.length}\r
+           |\r
+           |$entity""".stripMargin
 
-    println(s"Allocating a buffer for the response (${bytes.length} bytes)")
-    val string = stdlib.malloc(bytes.length)
+      case Left(invalidRequest) =>
+        ErrorResponse
+    }
+
+    val byteArray = responseText.getBytes(StandardCharsets.UTF_8)
+
+    println(s"Allocating a buffer for the response (${byteArray.length} bytes)")
+    val responseBuffer = stdlib.malloc(byteArray.length)
 
     var c = 0
-    while (c < bytes.length) {
-      string(c) = bytes(c)
+    while (c < byteArray.length) {
+      responseBuffer(c) = byteArray(c)
       c += 1
     }
 
-    !buffer._1 = string
-    !buffer._2 = bytes.length
+    println("Allocating a wrapper for the response buffer")
+    val buffer = stdlib.malloc(sizeof[Buffer]).cast[Ptr[Buffer]]
+
+    !buffer._1 = responseBuffer
+    !buffer._2 = byteArray.length
 
     println("Allocating a Write for the response")
-    val req = stdlib.malloc(sizeof[uv.Write]).cast[Ptr[Write]]
+    val req = stdlib.malloc(sizeof[Write]).cast[Ptr[Write]]
 
+    // Store a pointer to the response buffer in the 'data' field to make it easy to free it later
     !req._1 = buffer.cast[Ptr[Byte]]
 
     bailOnError(uv.write(req, clientHandle, buffer, 1.toUInt, onWritten))
