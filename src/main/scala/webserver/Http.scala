@@ -35,9 +35,7 @@ object Http {
   private val header: Parser[Header] =
     P ( CharsWhile(_ != ':').! ~ ": " ~ CharsWhile(_ != '\r').! ~ "\r\n" ) map Header.tupled
 
-  private val startLineAndHeaders = P ( startLine ~ header.rep ) map {
-    case (sl, headers) => HttpRequest(sl, headers)
-  }
+  private val startLineAndHeaders = P ( startLine ~ header.rep ) map HttpRequest.tupled
 
   def parseRequest(raw: String): Either[String, HttpRequest] = startLineAndHeaders.parse(raw) match {
     case Success(parsedRequest, _) => Right(parsedRequest)
