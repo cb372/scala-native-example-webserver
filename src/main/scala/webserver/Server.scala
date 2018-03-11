@@ -82,7 +82,7 @@ object Server {
   }
 
   private val ErrorResponse =
-    s"""HTTP/1.1 422 Bad Request\r
+    s"""HTTP/1.1 400 Bad Request\r
        |Connection: close\r
        |Content-Type: text/plain; charset=utf8\r
        |Content-Length: 35\r
