@@ -1,8 +1,7 @@
-package webserver
 
 import scala.scalanative.native._
 
-object UvUtil {
+package object webserver {
 
   def bailOnError(f: => CInt): Unit = {
     val result = f

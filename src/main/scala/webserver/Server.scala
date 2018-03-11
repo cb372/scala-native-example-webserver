@@ -2,8 +2,7 @@ package webserver
 
 import java.nio.charset.{Charset, StandardCharsets}
 
-import webserver.UvUtil._
-import webserver.uv.{Buffer, Loop, TcpHandle, Write}
+import webserver.uv._
 
 import scala.scalanative.native._
 

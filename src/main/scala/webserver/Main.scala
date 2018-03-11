@@ -1,6 +1,5 @@
 package webserver
 
-import webserver.UvUtil._
 import webserver.uv.TcpHandle
 
 import scala.scalanative.native._

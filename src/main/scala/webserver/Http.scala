@@ -44,6 +44,4 @@ object Http {
     case f: Failure[_, _] => Left(f.toString)
   }
 
-  // TODO test
-
 }
